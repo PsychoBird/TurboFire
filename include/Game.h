@@ -45,6 +45,7 @@ extern Hand** hands;
 extern int players;
 
 void game_init(int);
+void game_init_with_hands(Hand**, int);
 void deal_hand(int);
 void print_hands(void);
 void print_hand(int);

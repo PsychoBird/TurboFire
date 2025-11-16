@@ -24,6 +24,25 @@ void deck_init() {
     }
 }
 
+void remove_card_from_deck(Card card) {
+    int i, found=0;
+
+    for (i = 0; i < deck->card_count; i++) {
+        if (found) {
+            deck->cards[i-1] = deck->cards[i];
+            continue;
+        }
+        if (card.rank == deck->cards[i]->rank && card.suit == deck->cards[i]->suit) {
+            free(deck->cards[i]);
+            deck->cards[i] = NULL;
+            found = 1;
+        }
+    }
+
+    deck->cards[deck->card_count-1] = NULL;
+    deck->card_count--;
+}
+
 void deck_free() {
     int i;
 

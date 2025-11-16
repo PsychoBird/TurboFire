@@ -28,7 +28,30 @@ void game_init(int _players) {
     }
 
     board = (Board*) malloc(sizeof(Board));
-    // Initialize with sentinel values to indicate "not dealt"
+    board->turn.rank = -1;
+    board->river.rank = -1;
+    board->flop[0].rank = -1;
+}
+
+/*
+Will not copy parameter Hand, will copy it directly
+*/
+void game_init_with_hands(Hand** _hands, int _players) {
+    int i;
+
+    players = _players;
+    hands = _hands;
+
+    deck_init();
+    shuffle_deck();
+
+    //remove all hole cards
+    for (i = 0; i < _players; i++) {
+        remove_card_from_deck(hands[i]->cards[0]);
+        remove_card_from_deck(hands[i]->cards[1]);
+    }
+
+    board = (Board*) malloc(sizeof(Board));
     board->turn.rank = -1;
     board->river.rank = -1;
     board->flop[0].rank = -1;
@@ -50,13 +73,14 @@ void deal_river() {
 
 //TO-DO: cleanup function, proof-of-concept for now
 void monte_carlo_from_position(int players) {
-    int i, winner;
+    int i, winner, tie = 0;
     int wins[10] = {0}; //ten handed for future use, but we probably won't get there...
 
     Board* board_backup, *_board;
     Deck* deck_backup, *_deck;
     clock_t start, end;
     double runtime;
+    double equity;
     
     _deck = deck;
     _board = board;
@@ -66,9 +90,6 @@ void monte_carlo_from_position(int players) {
     deck_backup = (Deck*) malloc(sizeof(Deck));
     memcpy(deck_backup, deck, sizeof(Deck));
 
-    board = board_backup;
-    deck = deck_backup;
-
     start = clock();
 
     for (i = 0; i < 10000; i++) {
@@ -77,9 +98,10 @@ void monte_carlo_from_position(int players) {
         deal_turn();
         deal_river();
         winner = determine_winner();
-        if (winner >= 0 && winner < 10) {
+        if (winner >= 0 && winner < 10)
             wins[winner]++;
-        }
+        else if (winner == -1)
+            tie++;
         board = board_backup;
         deck = deck_backup;
     }
@@ -89,9 +111,12 @@ void monte_carlo_from_position(int players) {
 
     printf("\nPreflop Equity Results:\n");
     for (i = 0; i < 2; i++) {
-        double equity = (double)wins[i] / 10000 * 100.0;
+        equity = (double)wins[i] / 10000 * 100.0;
         printf("Player %d: %.2f%% (%d wins)\n", i, equity, wins[i]);
     }
+    equity = (double)tie / 10000 * 100.0;
+    printf("Tie: %.2f%% (%d wins)\n", equity, tie);
+
     printf("\nRuntime: %.2f seconds\n", runtime);
 
     free(board_backup);
@@ -203,6 +228,9 @@ static int get_straight_high_card(int rank_counts[13]) {
     return high;
 }
 
+/*
+generated with AI, will look this over later
+*/
 static HandEvaluation evaluate_five_card_hand(Card* cards) {
     HandEvaluation eval = {0};
     int rank_counts[13];
@@ -239,7 +267,7 @@ static HandEvaluation evaluate_five_card_hand(Card* cards) {
     int straight_high = get_straight_high_card(rank_counts);
     
     if (is_straight_hand && flush_suit != -1) {
-        if (straight_high == KING && rank_counts[ACE]) {
+        if (straight_high == ACE) {
             eval.hand_type = ROYAL_FLUSH;
         } else {
             eval.hand_type = STRAIGHT_FLUSH;
@@ -333,7 +361,7 @@ static HandEvaluation evaluate_five_card_hand(Card* cards) {
 static HandEvaluation get_best_hand(int player) {
     Card all_cards[7];
     Card best_5[5];
-    HandEvaluation best_eval;
+    HandEvaluation best_eval, eval;
     int i, j, k, idx;
     int first = 1;
     
@@ -356,7 +384,7 @@ static HandEvaluation get_best_hand(int player) {
                 }
             }
             
-            HandEvaluation eval = evaluate_five_card_hand(best_5);
+            eval = evaluate_five_card_hand(best_5);
             
             //compare and keep best
             if (first || compare_hands(&eval, &best_eval) > 0) {
@@ -400,20 +428,28 @@ static int compare_hands(HandEvaluation* h1, HandEvaluation* h2) {
 
 //find winner among all players
 int determine_winner(void) {
-    int i, winner = 0;
+    int i, cmp, winner = 0, tie = 0;
     HandEvaluation best_eval, current_eval;
     
-    if (players == 0) return -1;
+    if (players == 0) 
+        return -2; //return -2 for err
     
     best_eval = get_best_hand(0);
     
     for (i = 1; i < players; i++) {
         current_eval = get_best_hand(i);
-        if (compare_hands(&current_eval, &best_eval) > 0) {
+        cmp = compare_hands(&current_eval, &best_eval);
+        if (cmp > 0) {
             best_eval = current_eval;
             winner = i;
+            tie = 0;
+        } else if (cmp == 0) {
+            tie = 1;
         }
     }
     
+    if (tie)
+        return -1; //return -1 for tie
+
     return winner;
 }

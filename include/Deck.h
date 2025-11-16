@@ -15,6 +15,7 @@ typedef struct Deck {
 extern Deck* deck;
 
 void deck_init(void);
+void remove_card_from_deck(Card);
 void deck_free(void);
 void shuffle_deck(void);
 void print_deck(void);

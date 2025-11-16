@@ -1,8 +1,8 @@
 #include "Card.h"
 
 const char* rank_names[] = {
-    "A", "2", "3", "4", "5", "6", "7",
-    "8", "9", "T", "J", "Q", "K"
+    "2", "3", "4", "5", "6", "7", "8",
+    "9", "T", "J", "Q", "K", "A"
 };
 
 const char* suit_names[] = {
