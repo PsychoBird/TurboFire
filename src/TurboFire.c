@@ -18,9 +18,9 @@ int main(int argc, char *argv[]) {
     my_hands[0]->cards[1].suit = SPADES;
     
     //pocket kings p1
-    my_hands[1]->cards[0].rank = KING;
+    my_hands[1]->cards[0].rank = NINE;
     my_hands[1]->cards[0].suit = HEARTS;
-    my_hands[1]->cards[1].rank = KING;
+    my_hands[1]->cards[1].rank = NINE;
     my_hands[1]->cards[1].suit = DIAMONDS;
     
     game_init_with_hands(my_hands, players);
