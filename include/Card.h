@@ -35,6 +35,9 @@ typedef struct Card {
     Suit suit;
 } Card;
 
+extern const char* rank_names[];
+extern const char* suit_names[];
+
 void print_card(Card card);
 
 #endif /* CARD_H */

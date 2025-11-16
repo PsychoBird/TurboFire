@@ -42,6 +42,7 @@ void deck_free() {
     deck = NULL;
 }
 
+
 Card draw_card() {
     return *deck->cards[deck->top++];
 }

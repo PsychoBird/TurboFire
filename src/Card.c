@@ -1,11 +1,11 @@
 #include "Card.h"
 
-static const char* rank_names[] = {
+const char* rank_names[] = {
     "A", "2", "3", "4", "5", "6", "7",
     "8", "9", "T", "J", "Q", "K"
 };
 
-static const char* suit_names[] = {
+const char* suit_names[] = {
     "♣", "♦", "♥", "♠"
 };
 
