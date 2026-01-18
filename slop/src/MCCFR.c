@@ -403,7 +403,8 @@ double mccfr_cfr(MCCFRSolver *solver, InfoSet *iset, double reach_p0, double rea
         
         if (a == ACTION_FOLD) {
             // Fold loses the pot (1.0) for the folding player
-            // From P0's perspective: if P0 folds, P0 loses 1.0; if P1 folds, P0 wins 1.0
+            // Utility is always from P0's perspective for consistency
+            // If P0 folds, P0 loses 1.0; if P1 folds, P0 wins 1.0
             util[a] = (iset->player == 0) ? -1.0 : 1.0;
         } else {
             // ACTION_CHECK_CALL
@@ -444,20 +445,61 @@ double mccfr_cfr(MCCFRSolver *solver, InfoSet *iset, double reach_p0, double rea
         node_util += strategy[a] * util[a];
     }
     
+    // Debug: Output utilities for IP nodes
+    if (iset->player == 1 && iset->num_actions == 1 && iset->action_history[0] == ACTION_CHECK_CALL && depth < 2) {
+        fprintf(stderr, "  IP Utilities (from P0 perspective): Check=%.3f, Bet=%.3f, Fold=%.3f, NodeUtil=%.3f\n",
+                util[0], util[1], util[2], node_util);
+    }
+    
     // Update regrets using counterfactual values
     double reach = (iset->player == 0) ? reach_p0 : reach_p1;
     double counterfactual_reach = (iset->player == 0) ? reach_p1 : reach_p0;
     
+    // Convert utilities to acting player's perspective for regret calculation
+    // Utilities are stored from P0's perspective, but regrets should be from acting player's perspective
+    double player_util[MAX_ACTIONS];
+    double player_node_util;
+    if (iset->player == 0) {
+        // P0's perspective - utilities are already correct
+        for (int a = 0; a < MAX_ACTIONS; a++) {
+            player_util[a] = util[a];
+        }
+        player_node_util = node_util;
+    } else {
+        // P1's perspective - negate utilities (since they're from P0's perspective)
+        for (int a = 0; a < MAX_ACTIONS; a++) {
+            player_util[a] = -util[a];
+        }
+        player_node_util = -node_util;
+    }
+    
+    // Debug: Output player utilities and regrets for IP after OOP checks
+    if (iset->player == 1 && iset->num_actions == 1 && iset->action_history[0] == ACTION_CHECK_CALL && depth < 2 && data->visits % 1000 == 0) {
+        fprintf(stderr, "  IP Utilities (IP perspective, visit %lu): Check=%.3f, Bet=%.3f, Fold=%.3f, NodeUtil=%.3f\n",
+                data->visits, player_util[0], player_util[1], player_util[2], player_node_util);
+        fprintf(stderr, "  Current regrets: Check=%.3f, Bet=%.3f, Fold=%.3f, CF_reach=%.3f\n",
+                data->regrets[0], data->regrets[1], data->regrets[2], counterfactual_reach);
+    }
+    
     for (int a = 0; a < MAX_ACTIONS; a++) {
-        double regret = util[a] - node_util;
+        double regret = player_util[a] - player_node_util;
         // Counterfactual regret: multiply by opponent's reach probability
         // Don't clamp regrets - negative regrets are fine, we use max(0, regret) in strategy
-        data->regrets[a] += counterfactual_reach * regret;
+        double regret_update = counterfactual_reach * regret;
+        data->regrets[a] += regret_update;
+        
+        // Debug: Show regret updates for IP
+        if (iset->player == 1 && iset->num_actions == 1 && iset->action_history[0] == ACTION_CHECK_CALL && depth < 2 && data->visits % 1000 == 0) {
+            const char *action_names[] = {"Check", "Bet", "Fold"};
+            fprintf(stderr, "  Regret update for %s: %.3f (util=%.3f, node_util=%.3f)\n",
+                    action_names[a], regret_update, player_util[a], player_node_util);
+        }
         
         // Update strategy sum (average strategy) - this accumulates over all iterations
         data->strategy_sum[a] += reach * strategy[a];
     }
     
+    // Return utility from P0's perspective (for consistency with caller)
     return node_util;
 }
 

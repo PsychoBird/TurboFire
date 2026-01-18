@@ -294,57 +294,62 @@ int main(int argc, char *argv[]) {
         gui_set_ranges(sb_range_str, bb_range_str);
     }
     
-    printf("SB Range: %s\n", sb_range_str);
-    printf("  Hands: %d", sb_range->count);
-    if (sb_range->percentage < 1.0) {
-        printf(" (Opened %.1f%% of the time)", sb_range->percentage * 100.0);
-    }
-    printf("\n");
-    printf("BB Range: %s\n", bb_range_str);
-    printf("  Hands: %d", bb_range->count);
-    if (bb_range->percentage < 1.0) {
-        printf(" (Defended %.1f%% of the time)", bb_range->percentage * 100.0);
-    }
-    printf("\n");
-    
-    if (board_size > 0) {
-        printf("Board: ");
-        for (int i = 0; i < board_size; i++) {
-            char bc[3];
-            card_str(board[i], bc);
-            printf("%s ", bc);
+    // GUI-only mode: skip all CLI analysis
+    if (use_gui) {
+        // Skip to GUI initialization
+    } else {
+        // CLI mode (kept for backward compatibility, but not recommended)
+        printf("SB Range: %s\n", sb_range_str);
+        printf("  Hands: %d", sb_range->count);
+        if (sb_range->percentage < 1.0) {
+            printf(" (Opened %.1f%% of the time)", sb_range->percentage * 100.0);
         }
         printf("\n");
-    }
-    printf("\n");
-    
-    // Determine which streets to analyze
-    Street streets_to_analyze[3];
-    int num_streets = 0;
-    const char *street_names[] = {"Flop", "Turn", "River"};
-    
-    if (board_size == 0) {
-        // Preflop - analyze flop, turn, river
-        streets_to_analyze[0] = STREET_FLOP;
-        streets_to_analyze[1] = STREET_TURN;
-        streets_to_analyze[2] = STREET_RIVER;
-        num_streets = 3;
-    } else if (board_size == 3) {
-        // Flop - analyze turn and river
-        streets_to_analyze[0] = STREET_TURN;
-        streets_to_analyze[1] = STREET_RIVER;
-        num_streets = 2;
-    } else if (board_size == 4) {
-        // Turn - analyze river
-        streets_to_analyze[0] = STREET_RIVER;
-        num_streets = 1;
-    } else if (board_size == 5) {
-        printf("River is terminal - no strategy needed.\n");
-        hr_free(hr);
-        free_range(sb_range);
-        free_range(bb_range);
-        return 0;
-    }
+        printf("BB Range: %s\n", bb_range_str);
+        printf("  Hands: %d", bb_range->count);
+        if (bb_range->percentage < 1.0) {
+            printf(" (Defended %.1f%% of the time)", bb_range->percentage * 100.0);
+        }
+        printf("\n");
+        
+        if (board_size > 0) {
+            printf("Board: ");
+            for (int i = 0; i < board_size; i++) {
+                char bc[3];
+                card_str(board[i], bc);
+                printf("%s ", bc);
+            }
+            printf("\n");
+        }
+        printf("\n");
+        
+        // Determine which streets to analyze
+        Street streets_to_analyze[3];
+        int num_streets = 0;
+        const char *street_names[] = {"Flop", "Turn", "River"};
+        
+        if (board_size == 0) {
+            // Preflop - analyze flop, turn, river
+            streets_to_analyze[0] = STREET_FLOP;
+            streets_to_analyze[1] = STREET_TURN;
+            streets_to_analyze[2] = STREET_RIVER;
+            num_streets = 3;
+        } else if (board_size == 3) {
+            // Flop - analyze turn and river
+            streets_to_analyze[0] = STREET_TURN;
+            streets_to_analyze[1] = STREET_RIVER;
+            num_streets = 2;
+        } else if (board_size == 4) {
+            // Turn - analyze river
+            streets_to_analyze[0] = STREET_RIVER;
+            num_streets = 1;
+        } else if (board_size == 5) {
+            printf("River is terminal - no strategy needed.\n");
+            hr_free(hr);
+            free_range(sb_range);
+            free_range(bb_range);
+            return 0;
+        }
     
     // First, collect all unique hand categories from SB range
     printf("Collecting unique hand types from SB range...\n");
@@ -692,20 +697,72 @@ int main(int argc, char *argv[]) {
         }
         
         printf("\nProcessed %d hand combinations for %s.\n\n", combinations, street_names[street_idx]);
+        }
+        
+        printf("\n=== Analysis Complete ===\n");
+    }
+    
+gui_mode:
+    // Run GUI if enabled (GUI-only mode)
+    if (use_gui) {
+        // Store hand ranks and ranges in GUI for strategy computation
+        // These will be used by GUI to compute strategies on-the-fly
+        
+        // Initialize game state with flop
+        GameState *game_state = gui_get_game_state();
+        if (game_state) {
+            // Set initial flop board
+            if (board_size == 0) {
+                // Generate random flop (3 cards)
+                // For now, use placeholder - in full implementation would exclude player hands
+                srand(time(NULL));
+                for (int i = 0; i < 3; i++) {
+                    game_state->board[i] = rand() % 52;
+                }
+                game_state->board_size = 3;
+            } else {
+                // Use provided board
+                for (int i = 0; i < board_size && i < 5; i++) {
+                    game_state->board[i] = board[i];
+                }
+                game_state->board_size = board_size;
+                // If board has 3 cards, we're on flop
+                if (board_size == 3) {
+                    game_state->current_street = STREET_FLOP;
+                } else if (board_size == 4) {
+                    game_state->current_street = STREET_TURN;
+                } else if (board_size == 5) {
+                    game_state->current_street = STREET_RIVER;
+                }
+            }
+            
+            // Set initial player (OOP acts first)
+            game_state->current_player = 0;  // OOP (BB)
+            game_state->waiting_for_action = 1;
+        }
+        
+        // Pass hand ranks and ranges to GUI for strategy computation
+        gui_set_hand_ranks(hr);
+        
+        // Don't free ranges/handranks yet - GUI needs them
+        // They'll be freed after GUI is done
+        
+        gui_run();
+        gui_cleanup();
+        
+        // Now free them after GUI is done
+        hr_free(hr);
+        free_range(sb_range);
+        free_range(bb_range);
+    } else {
+        hr_free(hr);
+        free_range(sb_range);
+        free_range(bb_range);
     }
     
     hr_free(hr);
     free_range(sb_range);
     free_range(bb_range);
-    
-    printf("\n=== Analysis Complete ===\n");
-    
-    // Run GUI if enabled
-    if (use_gui) {
-        printf("\n=== Launching GUI (close window to exit) ===\n");
-        gui_run();
-        gui_cleanup();
-    }
     
     return 0;
 }

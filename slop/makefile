@@ -9,7 +9,7 @@ gto-solver:
 gto-solver-gui:
 	mkdir -p output
 	@if pkg-config --exists sdl2 SDL2_ttf; then \
-		gcc -O3 -Iinclude -DUSE_GUI -lm `pkg-config --cflags --libs sdl2 SDL2_ttf` -o output/TurboFire src/TurboFire.c src/MCCFR.c src/RangeParser.c src/GUI.c; \
+		gcc -O3 -Iinclude -DUSE_GUI `pkg-config --cflags sdl2 SDL2_ttf` -o output/TurboFire src/TurboFire.c src/MCCFR.c src/RangeParser.c src/GUI.c -lm `pkg-config --libs sdl2 SDL2_ttf`; \
 		echo "Built with GUI support"; \
 	else \
 		echo "SDL2 not found. Install with: sudo apt-get install libsdl2-dev libsdl2-ttf-dev (Ubuntu/Debian)"; \

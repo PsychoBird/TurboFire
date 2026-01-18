@@ -24,14 +24,24 @@ static int rank_to_idx(char rank) {
     return -1;
 }
 
+// Ensure capacity for adding hands
+static void ensure_capacity(HandRange *range, int needed) {
+    if (range->count + needed > range->capacity) {
+        int new_capacity = range->capacity * 2;
+        while (new_capacity < range->count + needed) {
+            new_capacity *= 2;
+        }
+        range->hands = realloc(range->hands, new_capacity * sizeof(int[2]));
+        range->hand_percentages = realloc(range->hand_percentages, new_capacity * sizeof(double));
+        range->capacity = new_capacity;
+    }
+}
+
 // Generate all hands for a pair (e.g., "22")
 static void add_pair_hands(HandRange *range, int rank, double pct) {
+    ensure_capacity(range, 6);  // Pairs have 6 combos
     for (int s1 = 0; s1 < 4; s1++) {
         for (int s2 = s1 + 1; s2 < 4; s2++) {
-            if (range->count >= 1326) {
-                fprintf(stderr, "Warning: Hand range exceeds maximum capacity (1326)\n");
-                return;
-            }
             range->hands[range->count][0] = rank * 4 + s1;
             range->hands[range->count][1] = rank * 4 + s2;
             range->hand_percentages[range->count] = pct;
@@ -43,11 +53,8 @@ static void add_pair_hands(HandRange *range, int rank, double pct) {
 // Generate all hands for suited (e.g., "A2s")
 static void add_suited_hands(HandRange *range, int r1, int r2, double pct) {
     if (r1 == r2) return;  // Pairs handled separately
+    ensure_capacity(range, 4);  // Suited hands have 4 combos
     for (int suit = 0; suit < 4; suit++) {
-        if (range->count >= 1326) {
-            fprintf(stderr, "Warning: Hand range exceeds maximum capacity (1326)\n");
-            return;
-        }
         range->hands[range->count][0] = r1 * 4 + suit;
         range->hands[range->count][1] = r2 * 4 + suit;
         range->hand_percentages[range->count] = pct;
@@ -58,13 +65,10 @@ static void add_suited_hands(HandRange *range, int r1, int r2, double pct) {
 // Generate all hands for offsuit (e.g., "A2o")
 static void add_offsuit_hands(HandRange *range, int r1, int r2, double pct) {
     if (r1 == r2) return;  // Pairs handled separately
+    ensure_capacity(range, 12);  // Offsuit hands have 12 combos
     for (int s1 = 0; s1 < 4; s1++) {
         for (int s2 = 0; s2 < 4; s2++) {
             if (s1 != s2) {
-                if (range->count >= 1326) {
-                    fprintf(stderr, "Warning: Hand range exceeds maximum capacity (1326)\n");
-                    return;
-                }
                 range->hands[range->count][0] = r1 * 4 + s1;
                 range->hands[range->count][1] = r2 * 4 + s2;
                 range->hand_percentages[range->count] = pct;
@@ -162,12 +166,11 @@ static void parse_hand_spec(HandRange *range, const char *spec) {
 // Parse a range string (e.g., "22+,A2s+,K2o+" or "22+,A2s+@70%" or "A8s@50%,KJo@50%")
 HandRange* parse_range(const char *range_str) {
     HandRange *range = calloc(1, sizeof(HandRange));
+    // Initialize with capacity for 2000 hands (can grow)
+    range->capacity = 2000;
+    range->hands = calloc(range->capacity, sizeof(int[2]));
+    range->hand_percentages = calloc(range->capacity, sizeof(double));
     range->percentage = 1.0;  // Default to 100%
-    
-    // Initialize all hand percentages to 1.0
-    for (int i = 0; i < 1326; i++) {
-        range->hand_percentages[i] = 1.0;
-    }
     
     if (!range_str || strlen(range_str) == 0) {
         return range;
@@ -225,7 +228,11 @@ HandRange* parse_range(const char *range_str) {
 }
 
 void free_range(HandRange *range) {
-    free(range);
+    if (range) {
+        if (range->hands) free(range->hands);
+        if (range->hand_percentages) free(range->hand_percentages);
+        free(range);
+    }
 }
 
 // Get hand category for grouping (exported)
