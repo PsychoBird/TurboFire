@@ -1,0 +1,32 @@
+Implementation of the idea of storing a hand in a 64bit integer (OMP)
+
+Each hand is stored in a 64bit integer - 
+2-A of clubs, diamonds, hearts, spades
+
+[x x x A K Q J T 9 8 7 6 5 4 3 2 ] -> Clubs   (most sig)
+[x x x A K Q J T 9 8 7 6 5 4 3 2 ] -> Diamonds
+[x x x A K Q J T 9 8 7 6 5 4 3 2 ] -> Hearts  
+[x x x A K Q J T 9 8 7 6 5 4 3 2 ] -> Spades  (least significant)
+
+
+For example, a royal flush (diamonds) 
+
+0000000000000000 0001101100000000 0000000000000000 0001000000000000 (board - AdKdAsJdTd - any order)
+0000000000000000 0000010000000000 0001000000000000 0000000000000000 (hero  - QdAh       - any order)
+~BITWISE OR
+0000000000000000 0001111100000000 0001000000000000 0001000000000000 (7card sum)
+
+flush_clubs    = 7_card_sum >> 48
+flush_diamonds = 7_card_sum >> 32
+flush_hearts   = 7_card_sum >> 16
+flush_spades   = 7_card_sum
+
+ensure that these are masked against 0x1FFF
+
+call (__builtin_popcount(flush) >= 5) and return it if there's a flush
+
+note - this wont be in a predefined table
+the purpose of checking flushes is we can discard suits and now create a perfect hash table
+we simplify the amount of cards we can make a hand out of if we check flushes first
+
+to-do: we're going to implement the rest of the hand evaluation using hashing
