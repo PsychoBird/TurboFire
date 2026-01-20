@@ -1,3 +1,5 @@
+
 output/
 .cursor/
 .vscode/
+obj/
