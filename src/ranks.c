@@ -6,8 +6,9 @@
 uint16_t flush_map[0x2000];
 uint16_t rank_map[0x10000];
 
-uint32_t get_rank_map_index(uint64_t hand) {
-	uint32_t folded, id;
+uint16_t get_rank_map_index(uint64_t hand) {
+	uint32_t folded;
+	uint16_t id;
 
 	folded = (uint32_t)(hand >> 32) ^ (uint32_t)hand;
 	id     = (folded * OMPEVAL_MAGIC) >> 16;
@@ -15,8 +16,8 @@ uint32_t get_rank_map_index(uint64_t hand) {
 	return id;
 }
 
-uint32_t get_flush_map_index(uint64_t hand) {
-	uint32_t fc, fd, fh, fs;
+uint16_t get_flush_map_index(uint64_t hand) {
+	uint16_t fc, fd, fh, fs;
 
 	//create 13bit hand signature 
 	fc = (hand >> 48) & 0x1FFF ;
@@ -77,8 +78,39 @@ uint16_t calculate_rank_strength(int *ranks) {
 	return 0;
 }
 
-void generate_ranks_recursive(int depth, int start_rank, uint64_t current_rank, int *current_ranks) {
-	return;
+void generate_ranks_recursive(int depth, int start_rank, uint64_t current_hand, int *current_ranks) {
+	uint32_t rank_id;
+	int rank, count, k;
+	uint64_t new_card;
+
+	//base case 7 cards
+	if (depth == 7) {
+		rank_id = get_rank_map_index(current_hand);
+
+		//check if already populated
+		if (rank_map[rank_id])
+			return;
+
+		rank_map[rank_id] = calculate_rank_strength(current_ranks);
+	}
+
+	for (rank = start_rank; rank <= 12; r++) {
+		count = 0;
+
+		for (k = 0; k < depth; k++)
+			if (current_ranks[k] == rank)
+				count++;
+
+		// we cant have five of a kind
+		if (count >= 4)
+			continue; 
+
+		current_ranks[depth] = rank;
+
+		new_card = (1ULL << (rank + (16 * (depth % 4))));
+
+		generate_ranks_recursive(depth + 1, rank, current_hand | new_card, current_ranks);
+	}
 }
 
 void init_rank_map() {
