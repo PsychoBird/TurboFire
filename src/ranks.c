@@ -83,6 +83,67 @@ uint16_t calculate_flush_strength_from_hand(uint16_t generated, int *normal_flus
 }
 
 uint16_t calculate_rank_strength(int *ranks) {
+	int i;
+	int rank;
+	int rank_counts[13] = { 0 }; //histogram for card counts
+	uint16_t rank_mask;
+
+	int quads, trips, two_pair, one_pair;
+
+	int kicker;
+
+	//pop histogram
+	rank_mask = 0;
+	for ( i = 0 ; i < 7; i++ ) {
+		rank = ranks[i];
+		rank_counts[rank]++;
+		rank_mask |= (1 << rank);
+	}
+	
+	//find groups
+	quads     = -1; 
+	trips     = -1;
+	high_pair = -1; 
+	low_pair  = -1;
+
+	for ( i = 12; i >= 0; i--) {
+		if (rank_counts[i] == 4)
+			quads = i;
+		else if (rank_counts[i] == 3) {
+			if (trips == -1)
+				trips = i;
+			//old trips are now a pair
+			else if (high_pair == -1)
+				high_pair = i;
+		}
+		else if(rank_counts[i] == 2) {
+			if (high_pair == -1)
+				high_pair = i;
+			else if (low_pair == -1) 
+				low_pair = i;
+		}
+	}
+
+	//check quads
+	kicker = -1;
+
+	if (quads != -1) {
+		//best kicker
+		for ( i = 12; i >= 0; i--) {
+			if (rank_counts[i] > 0 && i != quads) {
+				kicker = i;
+				break;
+			}
+		}
+
+		// fix for actual card value
+		if (kicker > quads)
+			kicker--;
+
+		return QUADS_FLOOR + (quads * 12) + kicker + 1;
+	}
+
+	///TO-DO: full house, check calculate_rank_strength.c
 	return 0;
 }
 
