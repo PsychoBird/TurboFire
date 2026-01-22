@@ -6,6 +6,14 @@
 uint16_t flush_map[0x2000];
 uint16_t rank_map[0x10000];
 
+//fast lookup table for combinatorics for cards, 0-12
+static int nCk[13][6] = {
+    {1,0,0,0,0,0}, {1,1,0,0,0,0}, {1,2,1,0,0,0}, {1,3,3,1,0,0}, {1,4,6,4,1,0}, 
+    {1,5,10,10,5,1}, {1,6,15,20,15,6}, {1,7,21,35,35,21}, {1,8,28,56,70,56}, 
+    {1,9,36,84,126,126}, {1,10,45,120,210,252}, {1,11,55,165,330,462}, {1,12,66,220,495,792}
+};
+
+
 uint16_t get_rank_map_index(uint64_t hand) {
 	uint32_t folded;
 	uint16_t id;
@@ -92,9 +100,10 @@ void generate_ranks_recursive(int depth, int start_rank, uint64_t current_hand, 
 			return;
 
 		rank_map[rank_id] = calculate_rank_strength(current_ranks);
+		return;
 	}
 
-	for (rank = start_rank; rank <= 12; r++) {
+	for (rank = start_rank; rank <= 12; rank++) {
 		count = 0;
 
 		for (k = 0; k < depth; k++)
