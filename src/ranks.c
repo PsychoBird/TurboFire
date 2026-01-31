@@ -88,7 +88,7 @@ uint16_t calculate_rank_strength(int *ranks) {
 	int rank_counts[13] = { 0 }; //histogram for card counts
 	uint16_t rank_mask;
 
-	int quads, trips, two_pair, one_pair;
+	int quads, trips, high_pair, low_pair;
 
 	int kicker;
 
@@ -143,8 +143,114 @@ uint16_t calculate_rank_strength(int *ranks) {
 		return QUADS_FLOOR + (quads * 12) + kicker + 1;
 	}
 
-	///TO-DO: full house, check calculate_rank_strength.c
-	return 0;
+	//check full house
+	if (trips != -1 && high_pair != -1) {
+		//normalize top pair
+		if (high_pair > quads)
+			high_pair--;
+
+		return FULL_HOUSE_FLOOR + (trips * 12) + high_pair + 1;
+	}
+
+	//straights - broadways
+	for (i = 8; i >= 0; i--) {
+		if (((rank_mask >> i) & 0b11111) == 0b11111) {
+			return STRAIGHT_FLOOR + (i + 2);
+		}
+	}
+
+	//straights - wheel
+	if ((rank_mask & 0b1000000001111) == 0b1000000001111) 
+		return STRAIGHT_FLOOR + 1;
+
+	//trips
+	if (trips != -1) {
+		int kicker_high, kicker_low;
+		kicker_high = -1;
+		kicker_low  = -1;
+
+		for (i = 12; i >= 0; i--) {
+			if (rank_counts[i] > 0 && i != trips) {
+				//find first non-trips kicker, then get the lower
+				if (kicker_high == -1) {
+					kicker_high = i;
+				}
+				else {
+					kicker_low = i;
+					break;
+				}
+			}
+		}
+
+		//normalize
+		if (kicker_high > trips)
+			kicker_high--;
+		if (kicker_low  > trips)
+			kicker_low --;
+
+		return TRIPS_FLOOR + (trips * 66) + nCk[kicker_high][2] + nCk[kicker_low][1] + 1; 
+	}
+
+	int kicker_score;
+	//two pair
+	if (high_pair != -1 && low_pair != -1) {
+		kicker = -1;
+
+		//we only need one kicker...
+		for( i = 12; i >= 0; i--) {
+			if (rank_counts[i] > 0 && i != high_pair && i != low_pair) {
+				kicker = i;
+				break;
+			}
+		}
+
+		if (kicker > high_pair)
+			kicker--;
+		if (kicker > low_pair)
+			kicker--;
+
+		kicker_score = nCk[high_pair][2] + nCk[low_pair][1]; 
+		return TWO_PAIR_FLOOR + (kicker_score* 11) + kicker + 1;
+	}
+
+	//one pair
+	if (high_pair != -1) {
+		int kickers[3];
+		int id;
+
+		id = 0;
+		for ( i = 12; i >= 0; i--) {
+			if (rank_counts[i] > 0 && i != high_pair) {
+				kickers[id] = i;
+				//normalize the kicker
+				if (kickers[id] > high_pair)
+					kickers[id]--;
+				id++;
+				if (id == 3)
+					break;
+			}
+		}
+
+		kicker_score = nCk[kickers[0]][3] + nCk[kickers[1]][2] + nCk[kickers[2]][1];
+		return ONE_PAIR_FLOOR + (high_pair * 220) + kicker_score + 1;
+	}
+
+	//high card
+	int kickers[5];
+	int id;
+	int high_card_score;
+
+	id = 0;
+	for ( i = 12; i >= 0; i--) {
+		if (rank_counts[i] > 0) {
+			kickers[id++] = i;
+			if (id == 5)
+				break;
+		}
+	}
+	
+	high_card_score = nCk[kickers[0]][5] + nCk[kickers[1]][4] + nCk[kickers[2]][3] + nCk[kickers[3]][2] + nCk[kickers[4]][1];
+	return HIGH_CARD_FLOOR + high_card_score + 1;
 }
 
 void generate_ranks_recursive(int depth, int start_rank, uint64_t current_hand, int *current_ranks) {
