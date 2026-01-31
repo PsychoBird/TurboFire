@@ -3,6 +3,15 @@
 
 #include "ranks.h"
 
+/* 
+ * Preventing collisions for testing
+ * 0 = Spades
+ * 1 = Hearts
+ * 2 = Diamonds
+ * 3 = Clubs
+ */
+static const int SUIT_PERMUTATION[4] = { 1, 0, 3, 2 };
+
 uint16_t flush_map[0x2000];
 uint16_t rank_map[0x10000];
 
@@ -66,13 +75,13 @@ uint16_t calculate_flush_strength_from_hand(uint16_t generated, int *normal_flus
 
 	//wheel straight flush
 	if ((generated & 0b1000000001111) == 0b1000000001111)
-		return STRAIGHT_FLUSH_FLOOR;
+		return STRAIGHT_FLUSH_FLOOR + 1;
 	
 	// check all other straight flushes
 	// we're going to shift the straight flush all the way up to royal
 	for (i = 8; i >= 0; i--)
 		if (((generated >> i) & 0b11111) == 0b11111) 
-			return STRAIGHT_FLUSH_FLOOR + (i + 1);
+			return STRAIGHT_FLUSH_FLOOR + (i + 2);
 	
 	//all others, we're now counting up
 	rank = FLUSH_FLOOR + *normal_flush_counter;
@@ -146,7 +155,7 @@ uint16_t calculate_rank_strength(int *ranks) {
 	//check full house
 	if (trips != -1 && high_pair != -1) {
 		//normalize top pair
-		if (high_pair > quads)
+		if (high_pair > trips)
 			high_pair--;
 
 		return FULL_HOUSE_FLOOR + (trips * 12) + high_pair + 1;
@@ -255,7 +264,7 @@ uint16_t calculate_rank_strength(int *ranks) {
 
 void generate_ranks_recursive(int depth, int start_rank, uint64_t current_hand, int *current_ranks) {
 	uint32_t rank_id;
-	int rank, count, k;
+	int rank, count, suit, k;
 	uint64_t new_card;
 
 	//base case 7 cards
@@ -283,7 +292,8 @@ void generate_ranks_recursive(int depth, int start_rank, uint64_t current_hand, 
 
 		current_ranks[depth] = rank;
 
-		new_card = (1ULL << (rank + (16 * (depth % 4))));
+		suit = SUIT_PERMUTATION[count];
+		new_card = (1ULL << (rank + (16 * suit)));
 
 		generate_ranks_recursive(depth + 1, rank, current_hand | new_card, current_ranks);
 	}
