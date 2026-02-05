@@ -25,3 +25,8 @@ December 2025 / January 2026:
 - 2026-01-29 - 
   - Used Gemini to help build the rank verifier
   - Used Claude to generate the fix for non-flush ranks
+
+- 2026-02-04 - 
+  - I've been noticing some weird behavior: AI doesn't know poker terms
+  - The code is correct, but incredibly hard to steer due to it writing the code as if no human will read it
+  - Although I did not ask to steer it, as it is not something I expected, it is worth considering...
