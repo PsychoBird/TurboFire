@@ -8,6 +8,10 @@ OUT_DIR = output
 TEST_DIR = test
 TEST_OUT_DIR = $(OUT_DIR)/tests
 
+# MCCFR Configuration
+MCCFR_DIR = mccfr
+MCCFR_OUT_DIR = $(OUT_DIR)/mccfr
+
 # Source & Object definitions
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
@@ -16,23 +20,24 @@ OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 TARGET = $(OUT_DIR)/turbofire
 
 # Test Sources & Binaries
-# Finds all .c files in test/ and converts them to targets in output/tests/
 TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(TEST_OUT_DIR)/%, $(TEST_SRCS))
 
+# MCCFR Sources & Binaries
+MCCFR_SRCS = $(wildcard $(MCCFR_DIR)/*.c)
+MCCFR_BINS = $(patsubst $(MCCFR_DIR)/%.c, $(MCCFR_OUT_DIR)/%, $(MCCFR_SRCS))
+
 # Library Objects: All objects EXCEPT the main program entry point
-# We assume turbofire.c contains your main() function. 
-# We filter it out so we can link tests against ranks.o without double main() errors.
+# We filter out turbofire.o so we can link tests/mccfr against ranks.o without double main() errors.
 MAIN_OBJ = $(OBJ_DIR)/turbofire.o
 LIB_OBJS = $(filter-out $(MAIN_OBJ), $(OBJS))
 
 # --- TARGETS ---
 
-# 'all' now builds the main app AND all tests
-all: dirs $(TARGET) tests
+all: dirs $(TARGET) tests mccfr
 
 dirs:
-	@mkdir -p $(OBJ_DIR) $(OUT_DIR) $(TEST_OUT_DIR)
+	@mkdir -p $(OBJ_DIR) $(OUT_DIR) $(TEST_OUT_DIR) $(MCCFR_OUT_DIR)
 
 # Link the main executable
 $(TARGET): $(OBJS)
@@ -44,12 +49,18 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 
 # --- TEST RULES ---
 
-# Target to just build tests
 tests: $(TEST_BINS)
 
-# Compile each test file
-# Note: We link against $(LIB_OBJS) (ranks.o, etc) but NOT turbofire.o
 $(TEST_OUT_DIR)/%: $(TEST_DIR)/%.c $(LIB_OBJS)
+	$(CC) $(CFLAGS) $< $(LIB_OBJS) -o $@
+
+# --- MCCFR RULES ---
+
+mccfr: dirs $(MCCFR_BINS)
+
+# Compile mccfr files
+# Links against LIB_OBJS so you can use your src/ functions (like card eval) inside mccfr/
+$(MCCFR_OUT_DIR)/%: $(MCCFR_DIR)/%.c $(LIB_OBJS)
 	$(CC) $(CFLAGS) $< $(LIB_OBJS) -o $@
 
 run: all
@@ -58,4 +69,4 @@ run: all
 clean:
 	rm -rf $(OBJ_DIR) $(OUT_DIR)
 
-.PHONY: all dirs run clean tests
+.PHONY: all dirs run clean tests mccfr
